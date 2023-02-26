@@ -16,8 +16,8 @@ struct ConvoView: View {
     @State private var latestAnswer: String = ""
     
     var body: some View {
-        VStack {
-            Text("Latest question: \(speechRecognizer.transcript)")
+        VStack(alignment: .leading) {
+            Text("Latest question: \(speechRecognizer.transcript)").padding(.bottom)
             Text("Latest answer: \($latestAnswer.wrappedValue)")
         }
         .padding()
