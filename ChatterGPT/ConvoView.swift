@@ -10,17 +10,17 @@ import OpenAISwift
 
 struct ConvoView: View {
     @Environment(\.presentationMode) var presentation
+    
     let openAI = OpenAISwift(authToken: "YOUR_TOKEN") //Put yout OpenAI token here
     @StateObject var speechRecognizer = SpeechRecognizer()
-    @State private var latestQuestion: String = ""
     @State private var latestAnswer: String = ""
     
     var body: some View {
         VStack {
-            Text($latestQuestion.wrappedValue)
-            Text("Latest question: \(speechRecognizer.transcript)").padding()
-            Text("Latest answer: \($latestAnswer.wrappedValue)").padding()
+            Text("Latest question: \(speechRecognizer.transcript)")
+            Text("Latest answer: \($latestAnswer.wrappedValue)")
         }
+        .padding()
         .onChange(of: speechRecognizer.transcript, perform: { transcript in
             if transcript.hasSuffix(" Τέλος") || transcript.hasSuffix(" Τελος") || transcript.hasSuffix(" τέλος") || transcript.hasSuffix(" τελος") {
                 print("End detected...executing end process")
@@ -43,7 +43,6 @@ struct ConvoView: View {
                         
                     }
                 }
-//                self.presentation.wrappedValue.dismiss()
             }
         })
         .onAppear {
@@ -53,7 +52,6 @@ struct ConvoView: View {
         }
         .onDisappear {
             speechRecognizer.stopTranscribing()
-//            let newHistory = History(attendees: scrum.attendees, lengthInMinutes: scrum.timer.secondsElapsed / 60, transcript: speechRecognizer.transcript)
         }
     }
 }
