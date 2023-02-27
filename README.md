@@ -5,3 +5,6 @@ References: \
 https://developer.apple.com/documentation/speech \
 https://developer.apple.com/tutorials/app-dev-training/transcribing-speech-to-text \
 https://github.com/adamrushy/OpenAISwift
+
+Usage:
+Put your openAI token in the initialization of OpenAISwift inside ConvoView
