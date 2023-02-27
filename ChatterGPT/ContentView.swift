@@ -39,6 +39,9 @@ struct ContentView: View {
                         Label("Start Convo", systemImage: "person.wave.2.fill")
                     }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    EditButton()
+                }
             }
             .sheet(isPresented: $isPresentingConvoView) {
                 NavigationView {
