@@ -10,6 +10,7 @@ import OpenAISwift
 
 struct ConvoView: View {
     @Environment(\.presentationMode) var presentation
+    @Environment(\.managedObjectContext) private var viewContext
     
     let openAI = OpenAISwift(authToken: "YOUR_TOKEN") //Put yout OpenAI token here
     @StateObject var speechRecognizer = SpeechRecognizer()
@@ -18,7 +19,7 @@ struct ConvoView: View {
     var body: some View {
         VStack(alignment: .leading) {
             Text("Latest question: \(speechRecognizer.transcript)").padding(.bottom)
-            Text("Latest answer: \($latestAnswer.wrappedValue)")
+            Text("Latest answer: \(latestAnswer)")
         }
         .padding()
         .onChange(of: speechRecognizer.transcript, perform: { transcript in
@@ -34,9 +35,6 @@ struct ConvoView: View {
                     switch result {
                     case .success(let ai):
                         latestAnswer = ai.choices.first?.text ?? ""
-                        print(ai.choices)
-                        print(ai.model)
-                        print(ai.object)
                         
                     case .failure(let error):
                         print("Error: \(error)")
@@ -52,6 +50,24 @@ struct ConvoView: View {
         }
         .onDisappear {
             speechRecognizer.stopTranscribing()
+            addItem(log: "Latest question: \(speechRecognizer.transcript)\n Latest answer: \(latestAnswer)")
+        }
+    }
+    
+    private func addItem(log: String) {
+        withAnimation {
+            let newItem = Chatlog(context: viewContext)
+            newItem.timestamp = Date()
+            newItem.log = log
+
+            do {
+                try viewContext.save()
+            } catch {
+                // Replace this implementation with code to handle the error appropriately.
+                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
+                let nsError = error as NSError
+                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+            }
         }
     }
 }

@@ -12,20 +12,23 @@ struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
+        sortDescriptors: [NSSortDescriptor(keyPath: \Chatlog.timestamp, ascending: true)],
         animation: .default)
-    private var items: FetchedResults<Item>
+    private var logs: FetchedResults<Chatlog>
     
     @State private var isPresentingConvoView = false
 
     var body: some View {
         NavigationView {
             List {
-                ForEach(items) { item in
+                ForEach(logs) { log in
                     NavigationLink {
-                        Text("Item at \(item.timestamp!, formatter: itemFormatter)")
+                        VStack(alignment: .center) {
+                            Text("Log at \(log.timestamp!, formatter: itemFormatter)").padding(.bottom)
+                            Text("\(log.log!)")
+                        }.padding()
                     } label: {
-                        Text(item.timestamp!, formatter: itemFormatter)
+                        Text(log.timestamp!, formatter: itemFormatter)
                     }
                 }
                 .onDelete(perform: deleteItems)
@@ -50,27 +53,15 @@ struct ContentView: View {
                         }
                 }
             }
-            Text("Select an item")
-            
-            
-        }
-    }
-    
-    private func recordAndTranscribe() {
-        do {
-            try viewContext.save()
-        } catch {
-            // Replace this implementation with code to handle the error appropriately.
-            // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-            let nsError = error as NSError
-            fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+            Text("Select a log")
         }
     }
 
-    private func addItem() {
+    private func addItem(log: String) {
         withAnimation {
-            let newItem = Item(context: viewContext)
+            let newItem = Chatlog(context: viewContext)
             newItem.timestamp = Date()
+            newItem.log = log
 
             do {
                 try viewContext.save()
@@ -85,7 +76,7 @@ struct ContentView: View {
 
     private func deleteItems(offsets: IndexSet) {
         withAnimation {
-            offsets.map { items[$0] }.forEach(viewContext.delete)
+            offsets.map { logs[$0] }.forEach(viewContext.delete)
 
             do {
                 try viewContext.save()
