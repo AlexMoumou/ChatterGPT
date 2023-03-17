@@ -6,6 +6,7 @@ import AVFoundation
 import Foundation
 import Speech
 import SwiftUI
+import Accelerate
 
 /// A helper for transcribing speech to text using SFSpeechRecognizer and AVAudioEngine.
 class SpeechRecognizer: ObservableObject {
@@ -31,6 +32,9 @@ class SpeechRecognizer: ObservableObject {
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private let recognizer: SFSpeechRecognizer?
+    private let bufferSize = 1024
+    
+    @Published var fftMagnitudes: [Float] = []
     
     /**
      Initializes a new speech recognizer. If this is the first time you've used the class, it
@@ -74,7 +78,7 @@ class SpeechRecognizer: ObservableObject {
             }
             
             do {
-                let (audioEngine, request) = try Self.prepareEngine()
+                let (audioEngine, request) = try self.prepareEngine()
                 self.audioEngine = audioEngine
                 self.request = request
                 self.task = recognizer.recognitionTask(with: request, resultHandler: self.recognitionHandler(result:error:))
@@ -99,7 +103,7 @@ class SpeechRecognizer: ObservableObject {
         task = nil
     }
     
-    private static func prepareEngine() throws -> (AVAudioEngine, SFSpeechAudioBufferRecognitionRequest) {
+    private func prepareEngine() throws -> (AVAudioEngine, SFSpeechAudioBufferRecognitionRequest) {
         let audioEngine = AVAudioEngine()
         
         let request = SFSpeechAudioBufferRecognitionRequest()
@@ -110,14 +114,48 @@ class SpeechRecognizer: ObservableObject {
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         let inputNode = audioEngine.inputNode
         
+        let fftSetup = vDSP_DFT_zop_CreateSetup(nil, UInt(1024), vDSP_DFT_Direction.FORWARD)
+        
         let recordingFormat = inputNode.outputFormat(forBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { (buffer: AVAudioPCMBuffer, when: AVAudioTime) in
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [self] (buffer: AVAudioPCMBuffer, when: AVAudioTime) in
             request.append(buffer)
+            let channelData = buffer.floatChannelData?[0]
+            DispatchQueue.main.async {
+                self.fftMagnitudes = self.fft(data: channelData!, setup: fftSetup!)
+            }
         }
         audioEngine.prepare()
         try audioEngine.start()
         
         return (audioEngine, request)
+    }
+    
+    func fft(data: UnsafeMutablePointer<Float>, setup: OpaquePointer) -> [Float] {
+        var realIn = [Float](repeating: 0, count: bufferSize)
+        var imagIn = [Float](repeating: 0, count: bufferSize)
+        var realOut = [Float](repeating: 0, count: bufferSize)
+        var imagOut = [Float](repeating: 0, count: bufferSize)
+            
+        for i in 0 ..< bufferSize {
+            realIn[i] = data[i]
+        }
+        
+        vDSP_DFT_Execute(setup, &realIn, &imagIn, &realOut, &imagOut)
+        
+        var magnitudes = [Float](repeating: 0, count: Constants.barAmount)
+        
+        realOut.withUnsafeMutableBufferPointer { realBP in
+            imagOut.withUnsafeMutableBufferPointer { imagBP in
+                var complex = DSPSplitComplex(realp: realBP.baseAddress!, imagp: imagBP.baseAddress!)
+                vDSP_zvabs(&complex, 1, &magnitudes, 1, UInt(Constants.barAmount))
+            }
+        }
+        
+        var normalizedMagnitudes = [Float](repeating: 0.0, count: Constants.barAmount)
+        var scalingFactor = Float(1)
+        vDSP_vsmul(&magnitudes, 1, &scalingFactor, &normalizedMagnitudes, 1, UInt(Constants.barAmount))
+            
+        return normalizedMagnitudes
     }
     
     private func recognitionHandler(result: SFSpeechRecognitionResult?, error: Error?) {
