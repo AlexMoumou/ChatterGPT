@@ -42,12 +42,14 @@ struct ConvoView: View {
             on: .main,
             in: .common
         ).autoconnect()
-    let openAI = OpenAISwift(authToken: "YOUR_TOKEN") //Put yout OpenAI token here
+    let openAI = OpenAISwift(authToken: "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") //Put yout OpenAI token here
     @StateObject var speechRecognizer = SpeechRecognizer()
     @State private var latestAnswer: String = ""
     
     @State var data: [Float] = Array(repeating: 0, count: Constants.barAmount)
             .map { _ in Float.random(in: 1 ... Constants.magnitudeLimit) }
+    
+    @State var isAsking: Bool = false
     
     private func normalizeSoundLevel(level: Float) -> CGFloat {
         let level = max(0.2, CGFloat(level) + 50) / 2 // between 0.1 and 25
@@ -57,6 +59,7 @@ struct ConvoView: View {
     var body: some View {
         
         VStack(alignment: .center) {
+            Toggle("Asking question:", isOn: $isAsking)
             VStack(alignment: .center) {
                 
                 if #available(iOS 16.0, *) {
@@ -91,13 +94,16 @@ struct ConvoView: View {
             Text("Latest answer: \(latestAnswer)")
         }
         .padding()
-        .onChange(of: speechRecognizer.transcript, perform: { transcript in
-            if transcript.hasSuffix(" Τέλος") || transcript.hasSuffix(" Τελος") || transcript.hasSuffix(" τέλος") || transcript.hasSuffix(" τελος") {
-                print("End detected...executing end process")
+        .onChange(of: isAsking, perform: { isAsking in
+            if isAsking {
+               speechRecognizer.reset()
+               speechRecognizer.transcribe()
+            } else {
                 speechRecognizer.stopTranscribing()
+                print("End detected...executing end process")
                 
-                let aString = transcript
-                let question = aString.replacingOccurrences(of: " Τέλος", with: "?", options: .literal, range: nil).replacingOccurrences(of: " τέλος", with: "?", options: .literal, range: nil).replacingOccurrences(of: " Τελος", with: "?", options: .literal, range: nil).replacingOccurrences(of: " τελος", with: "?", options: .literal, range: nil)
+                let aString = speechRecognizer.transcript
+                let question = aString + "?"
                 
                 openAI.sendCompletion(with: question, model: .gpt3(.davinci), maxTokens: 2040) { result in // Result<OpenAI, OpenAIError>
                     print(result)
@@ -107,16 +113,11 @@ struct ConvoView: View {
                         
                     case .failure(let error):
                         print("Error: \(error)")
-                        
+                        latestAnswer = error.localizedDescription
                     }
                 }
             }
         })
-        .onAppear {
-
-            speechRecognizer.reset()
-            speechRecognizer.transcribe()
-        }
         .onDisappear {
             speechRecognizer.stopTranscribing()
             addItem(log: "Latest question: \(speechRecognizer.transcript)\n Latest answer: \(latestAnswer)")

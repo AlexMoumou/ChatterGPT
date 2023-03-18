@@ -114,10 +114,10 @@ class SpeechRecognizer: ObservableObject {
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         let inputNode = audioEngine.inputNode
         
-        let fftSetup = vDSP_DFT_zop_CreateSetup(nil, UInt(1024), vDSP_DFT_Direction.FORWARD)
+        let fftSetup = vDSP_DFT_zop_CreateSetup(nil, UInt(bufferSize), vDSP_DFT_Direction.FORWARD)
         
         let recordingFormat = inputNode.outputFormat(forBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [self] (buffer: AVAudioPCMBuffer, when: AVAudioTime) in
+        inputNode.installTap(onBus: 0, bufferSize: AVAudioFrameCount(bufferSize), format: recordingFormat) { [self] (buffer: AVAudioPCMBuffer, when: AVAudioTime) in
             request.append(buffer)
             let channelData = buffer.floatChannelData?[0]
             DispatchQueue.main.async {
