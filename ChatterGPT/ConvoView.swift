@@ -42,7 +42,7 @@ struct ConvoView: View {
             on: .main,
             in: .common
         ).autoconnect()
-    let openAI = OpenAISwift(authToken: "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") //Put yout OpenAI token here
+    let openAI = OpenAISwift(authToken: "your-token") //Put yout OpenAI token here
     @StateObject var speechRecognizer = SpeechRecognizer()
     @State private var latestAnswer: String = ""
     
